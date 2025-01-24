@@ -53,9 +53,12 @@
 # @param symlink_name
 #   The name for the optional symlink in the installation directory.
 #
+# @param java_path
+#   The path to the java installation directory.
+#
 define java::download (
   Enum['present']                                 $ensure         = 'present',
-  String[1]                                       $version        = '8',
+  String[1,2]                                     $version        = '8',
   Optional[String]                                $version_major  = undef,
   Optional[String]                                $version_minor  = undef,
   String[1]                                       $java_se        = 'jdk',
@@ -69,6 +72,7 @@ define java::download (
   Optional[String]                                $package_type   = undef,
   Boolean                                         $manage_symlink = false,
   Optional[String]                                $symlink_name   = undef,
+  Optional[String[1]]                             $java_home      = undef,
 ) {
   # archive module is used to download the java package
   include archive
@@ -167,7 +171,11 @@ define java::download (
         }
       }
 
-      $creates_path = "${_basedir}/${install_path}"
+      $creates_path = if $java_home == undef {
+        "${_basedir}/${install_path}"
+      } else {
+        $java_home
+      }
       $os = 'linux'
       $destination_dir = '/tmp/'
     }
@@ -178,7 +186,9 @@ define java::download (
 
   # Install required unzip packages for jce
   if $jce {
-    ensure_resource('package', 'unzip', { 'ensure' => 'present' })
+    unless defined(Package['unzip']) {
+      ensure_resource('package', 'unzip', { 'ensure' => 'present' })
+    }
   }
 
   # set java architecture nomenclature
@@ -230,7 +240,6 @@ define java::download (
   else {
     fail('Url must be specified')
   }
-
   # full path to the installer
   $destination = "${destination_dir}${package_name}"
   notice ("Destination is ${destination}")
